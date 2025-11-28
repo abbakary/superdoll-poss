@@ -1,0 +1,1598 @@
+{% extends "tracker/base_formatted.html" %}
+
+{% load custom_filters %}
+{% load order_filters %}
+
+{% block title %}Vehicle Tracking Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root {
+    --primary-color: #667eea;
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --success-color: #28a745;
+    --warning-color: #ffc107;
+    --info-color: #17a2b8;
+    --danger-color: #dc3545;
+    --border-radius: 8px;
+    --box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    --transition: all 0.3s ease;
+}
+
+/* Global: prevent horizontal overflow and ensure content stays within viewport */
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+.dashboard-header {
+    background: white !important;
+    color: #333;
+    padding: 20px;
+    border-radius: var(--border-radius);
+    margin-bottom: 20px;
+    box-shadow: var(--box-shadow);
+    border-left: 5px solid var(--primary-color);
+    width: 100%;
+    overflow: hidden;
+}
+
+.dashboard-header h1, .dashboard-header p {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    margin: 0;
+    max-width: 100%;
+}
+
+.filter-card {
+    background: white;
+    padding: 15px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    margin-bottom: 15px;
+    transition: var(--transition);
+    width: 100%;
+    overflow: hidden;
+}
+
+.filter-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.filter-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    align-items: flex-end;
+    width: 100%;
+}
+
+.form-group {
+    min-width: 0; /* Allow form groups to shrink */
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #333;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    transition: var(--transition);
+    max-width: 100%;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+    outline: none;
+}
+
+.tracking-status-card {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 15px;
+    box-shadow: var(--box-shadow);
+    border-left: 4px solid var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: var(--transition);
+    height: 100%;
+    min-height: 120px;
+    overflow: hidden;
+}
+
+.tracking-status-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.tracking-status-card.active-vehicles {
+    border-left-color: #0d6efd;
+    background: linear-gradient(135deg, rgba(13, 110, 253, 0.05) 0%, transparent 100%);
+}
+
+.tracking-status-card.services-completed {
+    border-left-color: #28a745;
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.05) 0%, transparent 100%);
+}
+
+.tracking-status-card.repeat-customers {
+    border-left-color: #20c997;
+    background: linear-gradient(135deg, rgba(32, 201, 151, 0.05) 0%, transparent 100%);
+}
+
+.tracking-status-card.total-revenue {
+    border-left-color: #ffc107;
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.05) 0%, transparent 100%);
+}
+
+.status-icon {
+    font-size: 1.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: white;
+    flex-shrink: 0;
+}
+
+.tracking-status-card.active-vehicles .status-icon {
+    color: #0d6efd;
+}
+
+.tracking-status-card.services-completed .status-icon {
+    color: #28a745;
+}
+
+.tracking-status-card.repeat-customers .status-icon {
+    color: #20c997;
+}
+
+.tracking-status-card.total-revenue .status-icon {
+    color: #ffc107;
+}
+
+.status-content {
+    flex: 1;
+    min-width: 0; /* allow flex item content to shrink and wrap */
+    overflow: hidden;
+}
+
+.status-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #333;
+    line-height: 1.2;
+    word-break: break-word;
+}
+
+.status-label {
+    font-size: 0.85rem;
+    color: #666;
+    font-weight: 500;
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.status-trend {
+    font-size: 0.75rem;
+    color: #999;
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.status-trend i {
+    font-size: 0.7rem;
+}
+
+.period-tabs {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.period-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.period-tabs button {
+    padding: 8px 12px;
+    background: white;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: var(--transition);
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.period-tabs button.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.period-tabs button:hover {
+    border-color: var(--primary-color);
+}
+
+.view-controls {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.view-btn {
+    padding: 8px 12px;
+    background: white;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.view-btn.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.view-btn:hover {
+    border-color: var(--primary-color);
+}
+
+.vehicle-table {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    overflow: hidden;
+    transition: var(--transition);
+    width: 100%;
+    overflow-x: auto;
+    display: block;
+}
+
+.vehicle-table:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.vehicle-table table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 900px; /* Reduced from 1200px for better fit */
+    table-layout: fixed;
+}
+
+.vehicle-table thead {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.vehicle-table th {
+    padding: 10px 8px;
+    text-align: left;
+    font-weight: 600;
+    color: #333;
+    font-size: 0.85rem;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    overflow: hidden;
+}
+
+.vehicle-table td {
+    padding: 8px;
+    border-bottom: 1px solid #dee2e6;
+    transition: var(--transition);
+    font-size: 0.85rem;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    overflow: hidden;
+    vertical-align: top;
+}
+
+.vehicle-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.badge-custom {
+    display: inline-block;
+    padding: 3px 6px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.badge-service {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.badge-sales {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.badge-labour {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.badge-returning {
+    background-color: #cfe2ff;
+    color: #084298;
+    margin-left: 3px;
+}
+
+.vehicle-row-expandable {
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.vehicle-row-expandable:hover {
+    background-color: #f0f0f0;
+}
+
+.invoice-details {
+    display: none;
+    background-color: #f9f9f9;
+    transition: var(--transition);
+}
+
+.invoice-details.expanded {
+    display: table-row;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.invoice-items {
+    padding: 12px;
+    background-color: #f9f9f9;
+    overflow: hidden;
+}
+
+.invoice-card {
+    background: white;
+    border-left: 3px solid var(--primary-color);
+    padding: 10px;
+    margin-bottom: 8px;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: var(--transition);
+    overflow: hidden;
+}
+
+.invoice-card:hover {
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.invoice-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.invoice-number {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.9rem;
+    word-break: break-all;
+}
+
+.invoice-date {
+    color: #666;
+    font-size: 0.8rem;
+}
+
+.invoice-amount {
+    font-size: 1rem;
+    font-weight: bold;
+    color: var(--success-color);
+    white-space: nowrap;
+}
+
+.line-items-table {
+    width: 100%;
+    font-size: 0.8rem;
+    margin-top: 8px;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.line-items-table th {
+    background-color: #f0f0f0;
+    padding: 5px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+    font-weight: 600;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.line-items-table td {
+    padding: 5px;
+    border-bottom: 1px solid #eee;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.expand-icon {
+    cursor: pointer;
+    color: var(--primary-color);
+    font-weight: bold;
+    transition: var(--transition);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.expand-icon:hover {
+    color: #764ba2;
+    transform: scale(1.1);
+}
+
+.loading-spinner {
+    display: none;
+    text-align: center;
+    padding: 30px;
+    color: var(--primary-color);
+    width: 100%;
+}
+
+.loading-spinner.active {
+    display: block;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px 15px;
+    color: #999;
+    display: none;
+    width: 100%;
+}
+
+.empty-state-icon {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+.vehicle-tracking-section {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 15px;
+    margin-bottom: 15px;
+    transition: var(--transition);
+    width: 100%;
+    overflow: hidden;
+}
+
+.vehicle-tracking-section:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.section-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.section-title i {
+    color: var(--primary-color);
+}
+
+.tracking-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.tracking-metric-item {
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #e9ecef;
+    transition: var(--transition);
+    overflow: hidden;
+}
+
+.tracking-metric-item:hover {
+    background: #f0f0f0;
+    border-color: var(--primary-color);
+}
+
+.metric-item-value {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    line-height: 1;
+    margin-bottom: 6px;
+    word-break: break-all;
+}
+
+.metric-item-label {
+    font-size: 0.75rem;
+    color: #666;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.comparison-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+}
+
+.comparison-card {
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    overflow: hidden;
+}
+
+.comparison-label {
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.comparison-value {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 6px;
+    word-break: break-all;
+}
+
+.comparison-change {
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.comparison-change.positive {
+    color: #28a745;
+}
+
+.comparison-change.negative {
+    color: #dc3545;
+}
+
+.tracking-timeline {
+    position: relative;
+    padding: 15px 0;
+    overflow: hidden;
+}
+
+.timeline-item {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+    position: relative;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 25px;
+    bottom: -12px;
+    width: 2px;
+    background: #e9ecef;
+}
+
+.timeline-item:last-child::before {
+    display: none;
+}
+
+.timeline-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary-color);
+    font-size: 0.7rem;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+}
+
+.timeline-dot.completed {
+    background: var(--success-color);
+    border-color: var(--success-color);
+    color: white;
+}
+
+.timeline-dot.pending {
+    background: var(--warning-color);
+    border-color: var(--warning-color);
+    color: white;
+}
+
+.timeline-dot.in-progress {
+    background: var(--info-color);
+    border-color: var(--info-color);
+    color: white;
+}
+
+.timeline-content {
+    flex: 1;
+    padding-top: 2px;
+    overflow: hidden;
+}
+
+.timeline-date {
+    font-size: 0.75rem;
+    color: #999;
+    margin-bottom: 3px;
+    white-space: nowrap;
+}
+
+.timeline-title {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 3px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.timeline-detail {
+    font-size: 0.75rem;
+    color: #666;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Table column widths for better space management */
+.vehicle-table th:nth-child(1),
+.vehicle-table td:nth-child(1) {
+    width: 40px; /* Expand icon */
+}
+
+.vehicle-table th:nth-child(2),
+.vehicle-table td:nth-child(2) {
+    width: 12%; /* Vehicle */
+}
+
+.vehicle-table th:nth-child(3),
+.vehicle-table td:nth-child(3) {
+    width: 14%; /* Customer */
+}
+
+.vehicle-table th:nth-child(4),
+.vehicle-table td:nth-child(4) {
+    width: 12%; /* Services */
+}
+
+.vehicle-table th:nth-child(5),
+.vehicle-table td:nth-child(5) {
+    width: 8%; /* Orders */
+}
+
+.vehicle-table th:nth-child(6),
+.vehicle-table td:nth-child(6) {
+    width: 8%; /* Invoices */
+}
+
+.vehicle-table th:nth-child(7),
+.vehicle-table td:nth-child(7) {
+    width: 14%; /* Status */
+}
+
+.vehicle-table th:nth-child(8),
+.vehicle-table td:nth-child(8) {
+    width: 14%; /* Spending */
+}
+
+.vehicle-table th:nth-child(9),
+.vehicle-table td:nth-child(9) {
+    width: 10%; /* Actions */
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+    .filter-row {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+    
+    .tracking-status-card {
+        padding: 12px;
+    }
+    
+    .status-icon {
+        width: 45px;
+        height: 45px;
+        font-size: 1.6rem;
+    }
+    
+    .status-value {
+        font-size: 1.3rem;
+    }
+    
+    .vehicle-table table {
+        min-width: 800px;
+    }
+}
+
+@media (max-width: 992px) {
+    .dashboard-header {
+        padding: 15px;
+    }
+    
+    .filter-row {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    }
+    
+    .tracking-status-card {
+        min-height: 110px;
+        padding: 10px;
+    }
+    
+    .status-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.4rem;
+    }
+    
+    .status-value {
+        font-size: 1.2rem;
+    }
+    
+    .status-label {
+        font-size: 0.8rem;
+    }
+    
+    .vehicle-table table {
+        min-width: 750px;
+    }
+    
+    .vehicle-table th,
+    .vehicle-table td {
+        padding: 6px 4px;
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-header {
+        padding: 12px;
+        margin-bottom: 15px;
+    }
+    
+    .filter-row {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .period-tabs {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .period-controls,
+    .view-controls {
+        flex-wrap: wrap;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .invoice-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .invoice-amount {
+        margin-top: 5px;
+    }
+
+    .tracking-status-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 8px;
+        min-height: auto;
+        padding: 15px 10px;
+    }
+
+    .status-icon {
+        width: 35px;
+        height: 35px;
+        font-size: 1.2rem;
+    }
+
+    .tracking-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .comparison-metrics {
+        grid-template-columns: 1fr;
+    }
+    
+    .vehicle-table {
+        font-size: 0.8rem;
+    }
+    
+    .vehicle-table th,
+    .vehicle-table td {
+        padding: 5px 3px;
+        font-size: 0.75rem;
+    }
+    
+    .line-items-table {
+        font-size: 0.7rem;
+    }
+    
+    .line-items-table th,
+    .line-items-table td {
+        padding: 3px;
+        font-size: 0.7rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .dashboard-header {
+        padding: 10px;
+    }
+    
+    .dashboard-header h1 {
+        font-size: 1.3rem;
+    }
+    
+    .tracking-status-card {
+        padding: 8px;
+    }
+    
+    .status-value {
+        font-size: 1.1rem;
+    }
+    
+    .status-label {
+        font-size: 0.75rem;
+    }
+    
+    .status-trend {
+        font-size: 0.7rem;
+    }
+    
+    .tracking-metrics-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    
+    .vehicle-table th,
+    .vehicle-table td {
+        padding: 4px 2px;
+        font-size: 0.7rem;
+    }
+    
+    .badge-custom {
+        font-size: 0.7rem;
+        padding: 2px 4px;
+    }
+    
+    .period-tabs button,
+    .view-btn {
+        padding: 6px 10px;
+        font-size: 0.8rem;
+    }
+    
+    .form-group input,
+    .form-group select {
+        padding: 6px 8px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Print styles */
+@media print {
+    .period-tabs,
+    .view-controls,
+    .filter-card,
+    .btn {
+        display: none !important;
+    }
+    
+    .vehicle-table {
+        box-shadow: none !important;
+        border: 1px solid #ddd;
+    }
+    
+    .tracking-status-card {
+        box-shadow: none !important;
+        border: 1px solid #ddd;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3"> <!-- Added horizontal padding with breakpoints -->
+    <div class="dashboard-header">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
+            <div style="flex: 1; min-width: 0;"> <!-- Added min-width: 0 for proper text truncation -->
+                <h1 style="color: #333; margin-bottom: 8px; font-size: 1.5rem;"><i class="fa fa-truck me-2"></i>Vehicle Service Tracking</h1>
+                <p style="color: #666; margin: 0; font-size: 0.9rem;">Real-time tracking of vehicle services with comprehensive analytics</p>
+            </div>
+            {% if user.is_superuser %}
+            <div style="flex-shrink: 0;">
+                <button id="seedDataBtn" class="btn btn-outline-primary btn-sm" style="display: none; white-space: nowrap;" title="Create sample data for testing">
+                    <i class="fa fa-database me-1"></i>Seed Sample Data
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Quick Overview Cards -->
+    <div class="row g-2 g-md-3 mb-3 mb-md-4" id="quickOverviewCards"> <!-- Reduced gap on mobile -->
+        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 col-12"> <!-- Added responsive column classes -->
+            <div class="tracking-status-card active-vehicles">
+                <div class="status-icon"><i class="fa fa-car-alt"></i></div>
+                <div class="status-content">
+                    <div class="status-value" id="quickTotalVehicles">0</div>
+                    <div class="status-label">Active Vehicles</div>
+                    <div class="status-trend" id="quickVehicleTrend"><i class="fa fa-arrow-up"></i> This period</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 col-12">
+            <div class="tracking-status-card services-completed">
+                <div class="status-icon"><i class="fa fa-check-circle"></i></div>
+                <div class="status-content">
+                    <div class="status-value" id="quickCompletedServices">0</div>
+                    <div class="status-label">Services Completed</div>
+                    <div class="status-trend" id="quickCompletionRate"><i class="fa fa-star"></i> On track</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 col-12">
+            <div class="tracking-status-card repeat-customers">
+                <div class="status-icon"><i class="fa fa-redo-alt"></i></div>
+                <div class="status-content">
+                    <div class="status-value" id="quickReturningCount">0</div>
+                    <div class="status-label">Returning Vehicles</div>
+                    <div class="status-trend" id="quickReturnRate"><i class="fa fa-sync"></i> Repeat business</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 col-12">
+            <div class="tracking-status-card total-revenue">
+                <div class="status-icon"><i class="fa fa-money-bill-wave"></i></div>
+                <div class="status-content">
+                    <div class="status-value" id="quickTotalRevenue">0</div>
+                    <div class="status-label">Total Revenue</div>
+                    <div class="status-trend" id="quickRevenueGrowth"><i class="fa fa-chart-line"></i> Strong growth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Period Selection & Quick Actions -->
+    <div class="period-tabs">
+        <div class="period-controls">
+            <button class="period-btn active" data-period="daily">
+                <i class="fa fa-calendar-day me-1"></i>Daily
+            </button>
+            <button class="period-btn" data-period="weekly">
+                <i class="fa fa-calendar-week me-1"></i>Weekly
+            </button>
+            <button class="period-btn" data-period="monthly">
+                <i class="fa fa-calendar-month me-1"></i>Monthly
+            </button>
+        </div>
+        <div class="view-controls">
+            <button class="view-btn active" id="tableViewBtn" title="Table View">
+                <i class="fa fa-table"></i>
+            </button>
+            <button class="view-btn" id="cardViewBtn" title="Card View">
+                <i class="fa fa-th"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-card">
+        <div class="filter-row">
+            <div class="form-group">
+                <label for="startDate">Start Date</label>
+                <input type="date" id="startDate" class="filter-input" value="{{ start_date }}">
+            </div>
+            <div class="form-group">
+                <label for="endDate">End Date</label>
+                <input type="date" id="endDate" class="filter-input" value="{{ end_date }}">
+            </div>
+            <div class="form-group">
+                <label for="statusFilter">Order Status</label>
+                <select id="statusFilter" class="filter-input">
+                    <option value="all">All Status</option>
+                    <option value="completed">Completed</option>
+                    <option value="pending">Pending</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="orderTypeFilter">Order Type</label>
+                <select id="orderTypeFilter" class="filter-input">
+                    <option value="all">All Types</option>
+                    <option value="service">Service</option>
+                    <option value="sales">Sales</option>
+                    <option value="labour">Labour</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="searchInput">Search</label>
+                <input type="text" id="searchInput" class="filter-input" placeholder="Plate number or customer name">
+            </div>
+            <div class="form-group">
+                <button id="filterBtn" class="btn btn-primary" style="width: 100%; padding: 8px;">
+                    <i class="fa fa-filter me-1"></i>Apply Filters
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div class="loading-spinner" id="loadingSpinner">
+        <i class="fa fa-spinner fa-spin fa-2x"></i>
+        <p>Loading data...</p>
+    </div>
+
+    <!-- Vehicles Table -->
+    <div class="vehicle-table" id="vehiclesTableContainer" style="display:none;">
+        <table id="vehiclesTable">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>
+                        <i class="fa fa-car me-1"></i>Vehicle
+                        <br><small style="font-weight: normal;">Plate / Make-Model</small>
+                    </th>
+                    <th>
+                        <i class="fa fa-user me-1"></i>Customer
+                        <br><small style="font-weight: normal;">Name / Phone</small>
+                    </th>
+                    <th>
+                        <i class="fa fa-wrench me-1"></i>Services
+                    </th>
+                    <th>
+                        <i class="fa fa-list me-1"></i>Orders
+                    </th>
+                    <th>
+                        <i class="fa fa-receipt me-1"></i>Invoices
+                    </th>
+                    <th>
+                        <i class="fa fa-signal me-1"></i>Status
+                    </th>
+                    <th style="text-align: right;">
+                        <i class="fa fa-coins me-1"></i>Spending
+                        <br><small style="font-weight: normal;">Total / Avg</small>
+                    </th>
+                    <th style="text-align: center;">Actions</th> <!-- Centered actions for mobile -->
+                </tr>
+            </thead>
+            <tbody id="vehiclesTableBody">
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" id="emptyState" style="display:none;">
+        <div class="empty-state-icon">
+            <i class="fa fa-inbox"></i>
+        </div>
+        <p>No vehicles found matching your filters.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let isInitialLoad = true;
+    let lastTrackingVehicles = [];
+
+    // Check diagnostics on load
+    checkDataDiagnostics();
+
+    // Initialize filters with defaults if not provided from server
+    const serverStartDate = '{{ start_date }}' || '';
+    const serverEndDate = '{{ end_date }}' || '';
+
+    // Parse server dates or generate defaults
+    let defaultEndDate = new Date();
+    let defaultStartDate = new Date();
+    defaultStartDate.setDate(defaultStartDate.getDate() - 30);
+
+    const filters = {
+        period: 'monthly',
+        start_date: serverStartDate || defaultStartDate.toISOString().split('T')[0],
+        end_date: serverEndDate || defaultEndDate.toISOString().split('T')[0],
+        status: 'all',
+        order_type: 'all',
+        search: ''
+    };
+
+    // Set initial date inputs
+    document.getElementById('startDate').value = filters.start_date;
+    document.getElementById('endDate').value = filters.end_date;
+    
+    // Period buttons
+    document.querySelectorAll('.period-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            filters.period = this.dataset.period;
+            
+            // Update date range based on period
+            const endDate = new Date(filters.end_date);
+            let startDate = new Date(endDate);
+            
+            if (filters.period === 'daily') {
+                startDate = new Date(endDate);
+            } else if (filters.period === 'weekly') {
+                startDate.setDate(startDate.getDate() - 7);
+            } else {
+                startDate.setDate(startDate.getDate() - 30);
+            }
+            
+            document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+            
+            loadDashboardData();
+        });
+    });
+    
+    // View toggle
+    const tableViewBtn = document.getElementById('tableViewBtn');
+    const cardViewBtn = document.getElementById('cardViewBtn');
+    const vehiclesTableContainer = document.getElementById('vehiclesTableContainer');
+
+    tableViewBtn.addEventListener('click', function() {
+        tableViewBtn.classList.add('active');
+        cardViewBtn.classList.remove('active');
+        vehiclesTableContainer.style.display = 'block';
+        vehiclesTableContainer.classList.remove('card-view');
+    });
+
+    cardViewBtn.addEventListener('click', function() {
+        cardViewBtn.classList.add('active');
+        tableViewBtn.classList.remove('active');
+        vehiclesTableContainer.classList.add('card-view');
+    });
+
+    // Filter inputs
+    document.getElementById('filterBtn').addEventListener('click', loadDashboardData);
+    document.querySelectorAll('.filter-input').forEach(input => {
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') loadDashboardData();
+        });
+    });
+    
+    function updateFilters() {
+        filters.start_date = document.getElementById('startDate').value;
+        filters.end_date = document.getElementById('endDate').value;
+        filters.status = document.getElementById('statusFilter').value;
+        filters.order_type = document.getElementById('orderTypeFilter').value;
+        filters.search = document.getElementById('searchInput').value || '';
+    }
+
+    function buildApiUrl(endpoint, params) {
+        const url = new URL(endpoint, window.location.origin);
+        Object.keys(params).forEach(key => {
+            const value = params[key];
+            if (value !== undefined && value !== null && value !== '') {
+                url.searchParams.append(key, value);
+            }
+        });
+        return url.toString();
+    }
+
+    function loadDashboardData() {
+        updateFilters();
+        showLoadingSpinner(true);
+
+        const trackingParams = {
+            period: filters.period,
+            start_date: filters.start_date,
+            end_date: filters.end_date,
+            status: filters.status,
+            order_type: filters.order_type,
+            search: filters.search
+        };
+
+        fetch(buildApiUrl('/tracker/api/vehicles/tracking/data/', trackingParams))
+            .then(r => r.json())
+            .then(trackingData => {
+                if (trackingData.success) {
+                    renderMetrics(trackingData.summary);
+                    renderVehiclesTable(trackingData.data);
+                    lastTrackingVehicles = trackingData.data || [];
+                } else {
+                    console.error('API error:', trackingData);
+                }
+                showLoadingSpinner(false);
+                isInitialLoad = false;
+            })
+            .catch(error => {
+                console.error('Error loading dashboard data:', error);
+                showLoadingSpinner(false);
+                isInitialLoad = false;
+            });
+    }
+    
+    function renderMetrics(summary) {
+        document.getElementById('quickTotalVehicles').textContent = summary.total_vehicles;
+        document.getElementById('quickCompletedServices').textContent = summary.total_invoices;
+        document.getElementById('quickReturningCount').textContent = summary.returning_vehicles;
+        document.getElementById('quickTotalRevenue').textContent = formatCurrency(summary.total_spent);
+
+        const completionRate = summary.total_invoices > 0 ? Math.round((summary.order_stats.completed / summary.total_invoices) * 100) : 0;
+        document.getElementById('quickCompletionRate').textContent = completionRate + '% completion';
+
+        const returnRate = summary.total_vehicles > 0 ? Math.round((summary.returning_vehicles / summary.total_vehicles) * 100) : 0;
+        document.getElementById('quickReturnRate').textContent = returnRate + '% return rate';
+    }
+
+    function renderVehiclesTable(vehicles) {
+        const tableBody = document.getElementById('vehiclesTableBody');
+        const tableContainer = document.getElementById('vehiclesTableContainer');
+        const emptyState = document.getElementById('emptyState');
+
+        if (vehicles.length === 0) {
+            tableContainer.style.display = 'none';
+            emptyState.style.display = 'block';
+            return;
+        }
+
+        tableContainer.style.display = 'block';
+        emptyState.style.display = 'none';
+        tableBody.innerHTML = '';
+
+        vehicles.forEach((vehicle, idx) => {
+            const row = document.createElement('tr');
+            row.className = 'vehicle-row-expandable';
+
+            const serviceTypesBadges = vehicle.service_types && vehicle.service_types.length > 0
+                ? vehicle.service_types.map(type =>
+                    `<span class="badge-custom badge-service" style="font-size: 0.75rem;">${type}</span>`
+                ).join(' ')
+                : '<span style="color: #999;">-</span>';
+
+            const returningBadge = vehicle.is_returning ? '<span class="badge-custom badge-returning"><i class="fa fa-redo me-1"></i>Returning</span>' : '';
+
+            const totalOrders = vehicle.order_count || 0;
+            const completedOrders = vehicle.order_stats.completed || 0;
+            const completionRate = totalOrders > 0 ? Math.round((completedOrders / totalOrders) * 100) : 0;
+
+            let statusBadge = 'bg-secondary';
+            let statusText = 'Tracking';
+            let statusIcon = 'fa-info-circle';
+
+            if (vehicle.order_stats.completed > 0) {
+                statusBadge = 'bg-success';
+                statusText = `${completionRate}% Complete`;
+                statusIcon = 'fa-check-circle';
+            } else if (vehicle.order_stats.in_progress > 0) {
+                statusBadge = 'bg-info';
+                statusText = 'In Service';
+                statusIcon = 'fa-spinner';
+            } else if (vehicle.order_stats.pending > 0) {
+                statusBadge = 'bg-warning';
+                statusText = 'In Queue';
+                statusIcon = 'fa-clock';
+            }
+
+            const avgSpending = vehicle.invoice_count > 0 ? vehicle.total_spent / vehicle.invoice_count : 0;
+            const trackingStatus = vehicle.is_returning ?
+                '<i class="fa fa-sync-alt me-1" style="color: #20c997;"></i>Regular Customer' :
+                '<i class="fa fa-check me-1" style="color: #0d6efd;"></i>Active Tracking';
+
+            row.innerHTML = `
+                <td style="text-align: center;">
+                    <span class="expand-icon" onclick="toggleInvoiceDetails(${idx})">
+                        <i class="fa fa-chevron-down"></i>
+                    </span>
+                </td>
+                <td>
+                    <strong style="display: flex; align-items: center; gap: 6px;">
+                        <i class="fa fa-car" style="color: var(--primary-color);"></i>
+                        ${vehicle.plate_number}
+                    </strong>
+                    <small class="text-muted">${vehicle.make || '-'} ${vehicle.model || ''}</small>
+                    <br><small class="text-muted">${vehicle.vehicle_type || 'Vehicle'}</small>
+                </td>
+                <td>
+                    <div><strong>${vehicle.customer_name}</strong></div>
+                    <small class="text-muted" style="display:block;"><i class="fa fa-phone me-1"></i>${vehicle.customer_phone}</small>
+                </td>
+                <td>
+                    <div style="margin-bottom: 4px;">${serviceTypesBadges}</div>
+                    <small class="text-muted">${vehicle.service_types ? vehicle.service_types.length : 0} types</small>
+                </td>
+                <td style="text-align: center;">
+                    <div><strong style="font-size: 1.1rem;">${vehicle.order_count || 0}</strong></div>
+                    <small class="text-muted">Total</small>
+                </td>
+                <td style="text-align: center;">
+                    <div><strong style="font-size: 1.1rem; color: var(--primary-color);">${vehicle.invoice_count}</strong></div>
+                    <small class="text-muted">Services</small>
+                </td>
+                <td>
+                    <div style="margin-bottom: 6px;">
+                        <span class="badge ${statusBadge}" style="display: flex; align-items: center; gap: 4px; width: fit-content; font-size: 0.85rem;">
+                            <i class="fa ${statusIcon}"></i>${statusText}
+                        </span>
+                    </div>
+                    ${returningBadge}
+                    <div style="font-size: 0.8rem; margin-top: 4px;">${trackingStatus}</div>
+                </td>
+                <td style="text-align: right;">
+                    <div><strong style="color: var(--success-color); font-size: 0.95rem;">${formatCurrency(vehicle.total_spent)}</strong></div>
+                    <small class="text-muted">Total</small>
+                    <small class="text-muted" style="display: block; margin-top: 2px;">Avg: ${formatCurrency(avgSpending)}</small>
+                </td>
+                <td style="text-align: right;">
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewVehicleDetails(${vehicle.id}, ${vehicle.customer_id}, '${vehicle.plate_number.replace(/'/g, "\'")}')">
+                        <i class="fa fa-eye me-1"></i>View
+                    </button>
+                </td>
+            `;
+            tableBody.appendChild(row);
+            
+            // Invoice details row
+            const detailsRow = document.createElement('tr');
+            detailsRow.className = 'invoice-details';
+            detailsRow.id = `details-${idx}`;
+            
+            const invoicesHtml = vehicle.invoices.map(invoice => `
+                <div class="invoice-card">
+                    <div class="invoice-header">
+                        <div>
+                            <div class="invoice-number">${invoice.invoice_number}</div>
+                            <div class="invoice-date">${new Date(invoice.invoice_date).toLocaleDateString()}</div>
+                        </div>
+                        <div>
+                            <div class="invoice-amount">${formatCurrency(invoice.total_amount)}</div>
+                            <div style="font-size: 0.8rem; color: #666; margin-top: 4px;">
+                                Tax: ${formatCurrency(invoice.tax_amount)}
+                            </div>
+                        </div>
+                    </div>
+                    <div style="font-size: 0.85rem; color: #666; margin-bottom: 8px;">
+                        <div>Reference: <strong>${invoice.reference || 'N/A'}</strong></div>
+                        <div>Order: <strong>${invoice.order_number || 'N/A'}</strong></div>
+                        ${invoice.categories && invoice.categories.length > 0 ? `
+                            <div style="margin-top: 6px;">
+                                Categories: ${invoice.categories.map(cat => `<span class="badge-custom badge-service" style="font-size: 0.7rem;">${cat}</span>`).join(' ')}
+                            </div>
+                        ` : ''}
+                    </div>
+                    <table class="line-items-table">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Description</th>
+                                <th>Category</th>
+                                <th style="text-align: center;">Qty</th>
+                                <th style="text-align: right;">Unit Price</th>
+                                <th style="text-align: right;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${invoice.line_items.map(item => {
+                                const formatQty = (qty) => {
+                                    const num = parseFloat(qty);
+                                    return Number.isInteger(num) ? num.toString() : num.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+                                };
+                                return `
+                                <tr>
+                                    <td><code style="font-size: 0.8rem;">${item.code || '-'}</code></td>
+                                    <td style="font-size: 0.85rem;">${item.description}</td>
+                                    <td><span class="badge-custom badge-service" style="font-size: 0.7rem;">${item.category}</span></td>
+                                    <td style="text-align: center;">${formatQty(item.qty)}</td>
+                                    <td style="text-align: right;">${formatCurrency(item.unit_price)}</td>
+                                    <td style="text-align: right;"><strong>${formatCurrency(item.total)}</strong></td>
+                                </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                    <div style="margin-top: 8px; font-size: 0.85rem; text-align: right; border-top: 1px solid #eee; padding-top: 8px;">
+                        <div>Subtotal: <strong>${formatCurrency(invoice.subtotal)}</strong></div>
+                        <div>Total: <strong style="color: #28a745;">${formatCurrency(invoice.total_amount)}</strong></div>
+                    </div>
+                </div>
+            `).join('');
+            
+            detailsRow.innerHTML = `
+                <td colspan="8">
+                    <div class="invoice-items">
+                        <h5 style="font-size: 1.1rem;">Invoices for ${vehicle.plate_number}</h5>
+                        ${invoicesHtml}
+                    </div>
+                </td>
+            `;
+            tableBody.appendChild(detailsRow);
+        });
+    }
+    
+    function showLoadingSpinner(show) {
+        document.getElementById('loadingSpinner').classList.toggle('active', show);
+    }
+    
+    function formatCurrency(amount) {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'TZS',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(amount);
+    }
+    
+    window.toggleInvoiceDetails = function(idx) {
+        const detailsRow = document.getElementById(`details-${idx}`);
+        const icon = detailsRow.previousElementSibling.querySelector('.expand-icon i');
+        
+        detailsRow.classList.toggle('expanded');
+        
+        if (detailsRow.classList.contains('expanded')) {
+            icon.className = 'fa fa-chevron-up';
+        } else {
+            icon.className = 'fa fa-chevron-down';
+        }
+    };
+    
+    window.viewVehicleDetails = function(vehicleId, customerId, plate) {
+        try {
+            if (customerId) {
+                var base = "{% url 'tracker:customer_detail' 0 %}";
+                var url = base.replace('/0/', '/' + customerId + '/');
+                window.location.href = url;
+                return;
+            }
+            if (vehicleId) {
+                var baseEdit = "{% url 'tracker:vehicle_edit' 0 %}";
+                var urlEdit = baseEdit.replace('/0/', '/' + vehicleId + '/');
+                window.location.href = urlEdit;
+                return;
+            }
+            var searchBase = "{% url 'tracker:customers_search' %}";
+            var q = plate ? ('?q=' + encodeURIComponent(plate)) : '';
+            window.location.href = searchBase + q;
+        } catch (e) {}
+    };
+
+    function checkDataDiagnostics() {
+        fetch('/tracker/api/vehicles/tracking/diagnostics/')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.status === 'warning' && data.counts.invoices === 0) {
+                    const seedBtn = document.getElementById('seedDataBtn');
+                    if (seedBtn) {
+                        seedBtn.style.display = 'inline-block';
+                        seedBtn.addEventListener('click', seedSampleData);
+                    }
+                    console.log('No data found. Seed button available.');
+                } else if (data.success) {
+                    console.log('Data diagnostics:', data);
+                }
+            })
+            .catch(e => console.error('Error checking diagnostics:', e));
+    }
+
+    window.seedSampleData = function() {
+        if (!confirm('This will create sample vehicle tracking data. Continue?')) {
+            return;
+        }
+
+        const seedBtn = document.getElementById('seedDataBtn');
+        if (seedBtn) seedBtn.disabled = true;
+
+        fetch('/tracker/api/vehicles/tracking/seed/', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Sample data created successfully! The dashboard will refresh.');
+                    setTimeout(loadDashboardData, 500);
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(e => {
+                alert('Error seeding data: ' + e.message);
+                console.error('Seed error:', e);
+            })
+            .finally(() => {
+                if (seedBtn) seedBtn.disabled = false;
+            });
+    };
+
+    loadDashboardData();
+});
+</script>
+{% endblock %}
