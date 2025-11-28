@@ -134,8 +134,11 @@ def customer_status(customer):
             return ''
         today = timezone.localdate()
         # Consider new if registered today or total_visits <= 1
-        if getattr(customer, 'registration_date', None) and customer.registration_date.date() == today:
-            return 'new'
+        # IMPORTANT: Use localdate() for registration_date too, to ensure consistent timezone handling
+        if getattr(customer, 'registration_date', None):
+            reg_date = timezone.localdate(customer.registration_date) if hasattr(timezone, 'localdate') else customer.registration_date.date() if hasattr(customer.registration_date, 'date') else customer.registration_date
+            if reg_date == today:
+                return 'new'
         visits = getattr(customer, 'total_visits', 0) or 0
         return 'new' if visits <= 1 else 'returning'
     except Exception:
