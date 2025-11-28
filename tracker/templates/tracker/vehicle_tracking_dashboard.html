@@ -1028,6 +1028,46 @@ html, body {
     </div>
 </div>
 
+<!-- Category Trends Chart -->
+<div class="category-trends-card">
+    <div class="category-trends-header">
+        <div class="category-trends-title">
+            <i class="fa fa-chart-bar"></i>
+            Category Trends Analysis
+        </div>
+        <small style="color: #666;">Revenue breakdown by service type</small>
+    </div>
+
+    <div class="chart-legend">
+        <div class="chart-legend-item">
+            <span class="chart-legend-color sales"></span>
+            <span>Sales</span>
+        </div>
+        <div class="chart-legend-item">
+            <span class="chart-legend-color service"></span>
+            <span>Service</span>
+        </div>
+        <div class="chart-legend-item">
+            <span class="chart-legend-color labour"></span>
+            <span>Labour</span>
+        </div>
+    </div>
+
+    <div class="chart-container-wrapper">
+        <canvas id="categoryTrendsChart"></canvas>
+        <div class="chart-empty-state" id="chartEmptyState">
+            <div class="chart-empty-icon">
+                <i class="fa fa-inbox"></i>
+            </div>
+            <p>No data available for the selected period</p>
+        </div>
+    </div>
+
+    <div class="category-stats" id="categoryStats">
+        <!-- Stats will be populated by JavaScript -->
+    </div>
+</div>
+
 <!-- Loading Indicator -->
 <div class="loading-spinner" id="loadingSpinner">
     <i class="fa fa-spinner fa-spin fa-2x"></i>
